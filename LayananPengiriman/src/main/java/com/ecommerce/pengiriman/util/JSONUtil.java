@@ -1,56 +1,63 @@
 package com.ecommerce.pengiriman.util;
 
-// import com.ecommerce.pengiriman.IDGenerator;
 import com.ecommerce.pengiriman.model.DetailPengiriman;
 import org.json.JSONObject;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
- * Kelas utilitas untuk konversi objek ke/dari JSON
+ * Utilitas untuk konversi JSON
  */
 public class JSONUtil {
-
+    // Counter untuk ID pengiriman, menggunakan AtomicInteger untuk thread-safety
+    private static final AtomicInteger pengirimanCounter = new AtomicInteger(1);
+    
     /**
-     * Mengkonversi objek DetailPengiriman menjadi JSON string
+     * Mengkonversi DetailPengiriman ke string JSON
      */
     public static String toJSON(DetailPengiriman pengiriman) {
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("id", pengiriman.getId());
-        jsonObject.put("idPesanan", pengiriman.getIdPesanan());
-        jsonObject.put("namaPelanggan", pengiriman.getNamaPelanggan());
-        jsonObject.put("alamatPengiriman", pengiriman.getAlamatPengiriman());
-        jsonObject.put("tanggalPengiriman", pengiriman.getTanggalPengiriman().getTime());
-        jsonObject.put("statusPengiriman", pengiriman.getStatusPengiriman());
+        JSONObject json = new JSONObject();
         
+        // Tambahkan properti dari DetailPengiriman ke JSON
+        json.put("id", pengiriman.getId());
+        json.put("idPesanan", pengiriman.getIdPesanan());
+        json.put("namaPelanggan", pengiriman.getNamaPelanggan());
+        json.put("alamatPengiriman", pengiriman.getAlamatPengiriman());
+        json.put("statusPengiriman", pengiriman.getStatusPengiriman());
+        
+        // Tambahkan properti opsional jika tidak null
         if (pengiriman.getKurirPengiriman() != null) {
-            jsonObject.put("kurirPengiriman", pengiriman.getKurirPengiriman());
+            json.put("kurirPengiriman", pengiriman.getKurirPengiriman());
         }
         
         if (pengiriman.getNomorResi() != null) {
-            jsonObject.put("nomorResi", pengiriman.getNomorResi());
+            json.put("nomorResi", pengiriman.getNomorResi());
         }
         
-        return jsonObject.toString();
+        return json.toString();
     }
     
     /**
-     * Mengkonversi JSON string menjadi objek DetailPengiriman
+     * Mengkonversi string JSON ke DetailPengiriman
      */
     public static DetailPengiriman toDetailPengiriman(String jsonString) {
-        JSONObject jsonObject = new JSONObject(jsonString);
+        JSONObject json = new JSONObject(jsonString);
         
-        DetailPengiriman pengiriman = new DetailPengiriman();
-        pengiriman.setId(jsonObject.getInt("id"));
-        pengiriman.setIdPesanan(jsonObject.getInt("idPesanan"));
-        pengiriman.setNamaPelanggan(jsonObject.getString("namaPelanggan"));
-        pengiriman.setAlamatPengiriman(jsonObject.getString("alamatPengiriman"));
-        pengiriman.setStatusPengiriman(jsonObject.getString("statusPengiriman"));
+        int id = json.getInt("id");
+        int idPesanan = json.getInt("idPesanan");
+        String namaPelanggan = json.getString("namaPelanggan");
+        String alamatPengiriman = json.getString("alamatPengiriman");
+        String statusPengiriman = json.getString("statusPengiriman");
         
-        if (jsonObject.has("kurirPengiriman")) {
-            pengiriman.setKurirPengiriman(jsonObject.getString("kurirPengiriman"));
+        DetailPengiriman pengiriman = new DetailPengiriman(id, idPesanan, namaPelanggan, alamatPengiriman);
+        pengiriman.setStatusPengiriman(statusPengiriman);
+        
+        if (json.has("kurirPengiriman")) {
+            pengiriman.setKurirPengiriman(json.getString("kurirPengiriman"));
         }
         
-        if (jsonObject.has("nomorResi")) {
-            pengiriman.setNomorResi(jsonObject.getString("nomorResi"));
+        if (json.has("nomorResi")) {
+            pengiriman.setNomorResi(json.getString("nomorResi"));
         }
         
         return pengiriman;
@@ -66,8 +73,8 @@ public class JSONUtil {
         String namaPelanggan = jsonObject.getString("namaPelanggan");
         String alamatPengiriman = jsonObject.getString("alamatPengiriman");
         
-        // Generate ID pengiriman baru berurutan
-        int idPengiriman = IDGenerator.generatePengirimanId();
+        // Generate ID pengiriman baru dari counter lokal
+        int idPengiriman = pengirimanCounter.getAndIncrement();
         
         return new DetailPengiriman(idPengiriman, idPesanan, namaPelanggan, alamatPengiriman);
     }

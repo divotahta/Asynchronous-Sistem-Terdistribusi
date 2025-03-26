@@ -1,9 +1,8 @@
 package com.ecommerce.pengiriman;
 
 import com.ecommerce.pengiriman.model.DetailPengiriman;
-import com.ecommerce.pengiriman.service.PesananListener;
-import com.ecommerce.pengiriman.service.PengirimanStatusPublisher;
-import com.ecommerce.pengiriman.util.IDGenerator;
+import com.ecommerce.pengiriman.service.PesananConsumer;
+import com.ecommerce.pengiriman.service.PengirimanProducer;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.ecommerce.pengiriman.util.RabbitMQUtil;
@@ -29,13 +28,13 @@ public class AplikasiLayananPengiriman {
             // Inisialisasi exchange dan queue
             RabbitMQUtil.initializeExchangesAndQueues(channel);
             
-            // Service untuk menangani pesanan baru
-            PesananListener pesananListener = new PesananListener(connection);
-            Thread listenerThread = new Thread(pesananListener);
-            listenerThread.start();
+            // Consumer untuk menangani pesanan baru
+            PesananConsumer pesananConsumer = new PesananConsumer(connection);
+            Thread consumerThread = new Thread(pesananConsumer);
+            consumerThread.start();
             
-            // Publisher untuk mengirim status pengiriman
-            PengirimanStatusPublisher statusPublisher = new PengirimanStatusPublisher(connection);
+            // Producer untuk mengirim status pengiriman
+            PengirimanProducer pengirimanProducer = new PengirimanProducer(connection);
             
             // Menu interaktif
             Scanner scanner = new Scanner(System.in);
@@ -47,10 +46,10 @@ public class AplikasiLayananPengiriman {
                 
                 switch (pilihan) {
                     case 1:
-                        pesananListener.tampilkanDaftarPengiriman();
+                        pesananConsumer.tampilkanDaftarPengiriman();
                         break;
                     case 2:
-                        updatePengirimanStatus(scanner, pesananListener, statusPublisher);
+                        updatePengirimanStatus(scanner, pesananConsumer, pengirimanProducer);
                         break;
                     case 0:
                         running = false;
@@ -62,7 +61,8 @@ public class AplikasiLayananPengiriman {
             
             // Tutup koneksi
             logger.info("Menutup aplikasi...");
-            pesananListener.stop();
+            pesananConsumer.stop();
+            pengirimanProducer.stop();
             channel.close();
             connection.close();
             
@@ -89,11 +89,11 @@ public class AplikasiLayananPengiriman {
     
     private static void updatePengirimanStatus(
             Scanner scanner, 
-            PesananListener pesananListener, 
-            PengirimanStatusPublisher statusPublisher) {
+            PesananConsumer pesananConsumer, 
+            PengirimanProducer pengirimanProducer) {
         
         // Tampilkan daftar pengiriman terlebih dahulu
-        pesananListener.tampilkanDaftarPengiriman();
+        pesananConsumer.tampilkanDaftarPengiriman();
         
         System.out.print("\nMasukkan ID Pengiriman yang ingin diupdate: ");
         int id;
@@ -104,7 +104,7 @@ public class AplikasiLayananPengiriman {
             return;
         }
         
-        DetailPengiriman pengiriman = pesananListener.getPengirimanById(id);
+        DetailPengiriman pengiriman = pesananConsumer.getPengirimanById(id);
         if (pengiriman == null) {
             System.out.println("Pengiriman dengan ID " + id + " tidak ditemukan!");
             return;
@@ -144,8 +144,8 @@ public class AplikasiLayananPengiriman {
             
             pengiriman.setStatusPengiriman(newStatus);
             
-            // Publikasikan update status
-            statusPublisher.publishPengirimanStatus(pengiriman);
+            // Tambahkan ke queue
+            pengirimanProducer.tambahkanPengiriman(pengiriman);
             
             System.out.println("Status pengiriman berhasil diperbarui!");
             
